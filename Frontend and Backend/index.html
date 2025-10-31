@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VISION-COP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <h1 class="brand">FauxCatcher</h1>
+      <p class="tagline">Verify image originality with AI. Human‑friendly and fast.</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <div class="u-flex u-gap">
+        <div class="u-grow">
+          <div id="dropzone" class="dropzone" tabindex="0" aria-label="Upload image">
+            <input id="fileInput" type="file" accept="image/*" hidden />
+            <div class="dropzone__content">
+              <div class="dropzone__icon">📷</div>
+              <div>
+                <p class="dropzone__title">Drag & drop an image here</p>
+                <p class="dropzone__subtitle">or <button id="browseBtn" class="link" type="button">browse</button> to upload</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="preview" id="preview" aria-live="polite">
+          <img id="previewImg" alt="Selected preview" />
+          <div id="previewMeta" class="preview__meta"></div>
+          <button id="deleteBtn" class="btn btn--ghost u-mt" type="button">Delete Photo</button>
+        </aside>
+      </div>
+
+      <div class="actions u-mt">
+        <button id="btnSearch" class="btn">Find Similar</button>
+        <button id="btnVerify" class="btn">Detect Manipulation/Re‑use</button>
+        <button id="btnCaption" class="btn">Caption Consistency</button>
+        <button id="btnRanked" class="btn">Ranked Search</button>
+        <button id="btnAIDetect" class="btn">AI‑Generated?</button>
+      </div>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="results" class="card u-mt" hidden>
+      <h2 class="section-title">Results</h2>
+      <div id="resultsGrid" class="results-grid"></div>
+      <pre id="rawOutput" class="raw-output" hidden></pre>
+    </section>
+  </main>
+
+  <div id="topkModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="topkTitle">
+    <div class="modal__content">
+      <h3 id="topkTitle">Choose Top‑K</h3>
+      <input id="topKInput" class="input" type="number" min="1" max="100" value="10" />
+      <div class="modal__actions">
+        <button id="topkCancel" class="btn btn--ghost" type="button">Cancel</button>
+        <button id="topkConfirm" class="btn" type="button">Show Results</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- <footer class="footer">
+    <div class="container">
+      <p>Built with ❤️ for truth. Backend: FastAPI · Frontend: Vanilla JS</p>
+    </div>
+  </footer> -->
+
+  <script src="app.js"></script>
+</body>
+</html>
