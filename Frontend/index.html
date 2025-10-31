@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Image Fact-Checker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-muted: #888;
+            --border-color: #333;
+            --accent-color: #007bff;
+            --green: #28a745;
+            --yellow: #ffc107;
+            --red: #dc3545;
+            --shadow-light: rgba(0, 0, 0, 0.2);
+            --shadow-heavy: rgba(0, 0, 0, 0.4);
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            color: var(--text-color);
+            font-weight: 700;
+        }
+        h1 span {
+            color: var(--accent-color);
+        }
+        h2, h3 {
+            margin-top: 0;
+            font-weight: 500;
+        }
+        h2 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* --- NEW Explanation Text Style --- */
+        .explanation {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-top: -0.5rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        /* --- Upload Box --- */
+        .upload-box {
+            background-color: var(--card-color);
+            border-radius: 12px;
+            border: 2px dashed var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .upload-box.drag-over {
+            border-color: var(--accent-color);
+            background-color: #2a2a2a;
+        }
+        #imageUpload {
+            display: none;
+        }
+        .upload-label {
+            display: inline-block;
+            padding: 12px 20px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .upload-label:hover {
+            background-color: #0056b3;
+        }
+        #upload-prompt-text {
+            margin-top: 1rem;
+            color: var(--text-muted);
+        }
+        #imagePreview {
+            display: none;
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin: 1.5rem auto 0;
+            border: 1px solid var(--border-color);
+        }
+
+        #analyzeButton {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 500;
+            background-color: var(--green);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #analyzeButton:disabled {
+            background-color: #444;
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+        #analyzeButton:not(:disabled):hover {
+            background-color: #218838;
+        }
+
+        /* --- Loader --- */
+        .loader {
+            display: none;
+            margin: 3rem auto;
+            border: 6px solid var(--border-color);
+            border-top: 6px solid var(--accent-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Error Message --- */
+        #error-message {
+            display: none;
+            background-color: var(--red);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        /* --- Results Layout --- */
+        #results {
+            display: none;
+            margin-top: 2rem;
+        }
+        .results-layout {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 1.5rem;
+        }
+        .results-column-visual, .results-column-data {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        @media (max-width: 1024px) {
+            .results-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-light);
+        }
+        .card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* --- Specific Cards --- */
+        #summaryVerdict {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.5rem 0;
+        }
+        .verdict-green { color: var(--green); }
+        .verdict-yellow { color: var(--yellow); }
+        .verdict-red { color: var(--red); }
+
+        .key-findings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 0.5rem; /* Reduced margin */
+        }
+        .finding-item {
+            display: flex;
+            flex-direction: column; /* Changed to column */
+            align-items: flex-start; /* Align left */
+            font-size: 1.1rem;
+            padding: 0.75rem;
+            background-color: var(--bg-color);
+            border-radius: 8px;
+        }
+        .finding-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 0.25rem;
+        }
+        .finding-item-header span {
+            color: var(--text-muted);
+            font-size: 0.9rem; /* Smaller label */
+        }
+        .finding-item-header strong {
+            color: var(--text-color);
+            font-weight: 500;
+            font-size: 1.1rem; /* Main value */
+        }
+        .finding-item .explanation { /* Explanation inside finding item */
+            font-size: 0.9rem;
+            margin: 0;
+            line-height: 1.4;
+        }
+        #ocrText {
+            font-style: italic;
+            color: var(--text-color);
+            width: 100%;
+            background-color: #121212;
+            padding: 0.5rem;
+            border-radius: 5px;
+            margin-top: 0.5rem;
+        }
+
+        .web-results-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 0.5rem;
+        }
+        .web-results-list li {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            transition: border-color 0.2s;
+        }
+        .web-results-list li:hover {
+            border-color: var(--accent-color);
+        }
+        .web-results-list a {
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+        .web-results-list a:hover {
+            text-decoration: underline;
+        }
+        .web-results-list p {
+            margin: 0.5rem 0 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        .image-gallery img {
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .image-gallery img:hover {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Hybrid Image <span>Fact-Checker</span></h1>
+            <p>Upload or drop an image to perform a multi-level authenticity analysis.</p>
+        </header>
+
+        <div class="upload-box" id="uploadBox">
+            <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/jpg">
+
+            <img id="imagePreview" src="" alt="Image Preview">
+
+            <label for="imageUpload" class="upload-label">Choose an Image</label>
+            <p id="upload-prompt-text">or drag and drop it here</p>
+
+            <button id="analyzeButton" disabled>Analyze Image</button>
+        </div>
+
+        <div id="error-message"></div>
+
+        <div id="loader" class="loader"></div>
+
+        <div id="results">
+            <div class="results-layout">
+
+                <div class="results-column-visual">
+                    <div class="card">
+                        <h2>🖼️ Query Image</h2>
+                        <p class="explanation">This is the original image you uploaded for analysis.</p>
+                        <img id="queryImage" src="" alt="Query Image">
+                    </div>
+                    <div class="card">
+                        <h2>🔬 ELA (Error Level Analysis)</h2>
+                        <p class="explanation">
+                            ELA highlights differences in JPEG compression levels. Original parts of an image
+                            should have a uniform, dark appearance. Areas that are **brighter** or have
+                            **different textures** (like text or pasted elements) may be evidence of digital manipulation.
+                        </p>
+                        <img id="elaImage" src="" alt="ELA Image">
+                    </div>
+                </div>
+
+                <div class="results-column-data">
+                    <div class="card">
+                        <h2>📊 Analysis Summary</h2>
+                        <p class="explanation">
+                            This is the final, combined verdict based on all the tests below.
+                        </p>
+                        <div id="summaryVerdict"></div>
+                    </div>
+
+                    <div class="card">
+                        <h2>🔑 Key Findings</h2>
+                        <p class="explanation">
+                            A breakdown of the technical tests performed on the image.
+                        </p>
+                        <div class="key-findings-list">
+                            <div class="finding-item">
+                                <div class="finding-item-header">
+                                    <span>AI/Deepfake Verdict</span>
+                                    <strong id="deepfakeLabel"></strong>
+                                </div>
+                                <p class="explanation" id="deepfakeExplanation">
+                                    The model's guess whether the image is "REAL" (human-made) or "FAKE" (AI-generated).
+                                </p>
+                            </div>
+                            <div class="finding-item">
+                                <div class="finding-item-header">
+                                    <span>Model Confidence</span>
+                                    <strong id="deepfakeConfidence"></strong>
+                                </div>
+                                <p class="explanation">
+                                    How certain the AI model is about its verdict (from 0% to 100%).
+                                </p>
+                            </div>
+                            <div class="finding-item">
+                                <div class="finding-item-header">
+                                    <span>Manipulation Score (ELA)</span>
+                                    <strong id="tamperScore"></strong>
+                                </div>
+                                <p class="explanation">
+                                    A score based on the ELA image. A high score (e.g., &gt; 0.3) suggests
+                                    a higher likelihood of digital tampering.
+                                </p>
+                            </div>
+                            <div class="finding-item">
+                                <div class="finding-item-header">
+                                    <span>Detected Text (OCR)</span>
+                                </div>
+                                <p class="explanation">
+                                    Any text found in the image. This text is used to search for online context.
+                                </p>
+                                <p id="ocrText"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>🌐 Online Context</h2>
+                        <p class="explanation">
+                            Live web search results based on the detected text or a visual search of the image.
+                            This helps find the image's origin and context.
+                        </p>
+                        <div id="webResultsContainer">
+                            <p id="webResultsStatus">Searching online...</p>
+                            <ul id="webResultsList" class="web-results-list"></ul>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>📚 Similar Local Images</h2>
+                        <p class="explanation">
+                            Visually similar images found in this tool's internal database.
+                            This can help identify known fakes or track an image's variations.
+                        </p>
+                        <div id="similarImagesContainer">
+                            <p id="similarImagesStatus">No matches found.</p>
+                            <div id="similarImagesGallery" class="image-gallery"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- All Javascript is identical to the previous version ---
+        // --- No changes are needed here ---
+
+        const uploadBox = document.getElementById('uploadBox');
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadPromptText = document.getElementById('upload-prompt-text');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const loader = document.getElementById('loader');
+        const resultsDiv = document.getElementById('results');
+        const errorMessage = document.getElementById('error-message');
+
+        let selectedFile = null;
+
+        // --- Drag and Drop Handlers ---
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadBox.addEventListener(eventName, preventDefaults, false);
+        });
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadBox.addEventListener(eventName, () => uploadBox.classList.add('drag-over'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadBox.addEventListener(eventName, () => uploadBox.classList.remove('drag-over'), false);
+        });
+        uploadBox.addEventListener('drop', (e) => {
+            handleFile(e.dataTransfer.files[0]);
+        }, false);
+
+        // --- File Select Handler ---
+        imageUpload.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        // --- Unified File Handler ---
+        function handleFile(file) {
+            if (file && file.type.startsWith('image/')) {
+                selectedFile = file;
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(selectedFile);
+
+                uploadPromptText.textContent = selectedFile.name;
+                analyzeButton.disabled = false;
+            } else {
+                selectedFile = null;
+                imagePreview.style.display = 'none';
+                uploadPromptText.textContent = 'Please select a valid image file.';
+                analyzeButton.disabled = true;
+            }
+        }
+
+        // --- Analyze Button Click ---
+        analyzeButton.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // 1. Prepare UI for loading
+            loader.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            errorMessage.style.display = 'none'; // Hide old errors
+            analyzeButton.disabled = true;
+            analyzeButton.textContent = 'Analyzing...';
+
+            // 2. Create FormData
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            try {
+                // 3. Send request to Flask backend
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // 4. Populate results
+                populateResults(data);
+
+                // 5. Show results
+                loader.style.display = 'none';
+                resultsDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                // Show styled error
+                errorMessage.textContent = `Analysis failed: ${error.message}`;
+                errorMessage.style.display = 'block';
+                loader.style.display = 'none';
+                analyzeButton.disabled = false;
+                analyzeButton.textContent = 'Analyze Image';
+            }
+        });
+
+        function populateResults(data) {
+            // 1. Summary
+            const summaryEl = document.getElementById('summaryVerdict');
+            summaryEl.textContent = data.summary_verdict;
+            summaryEl.className = ''; // Clear old classes
+            if (data.summary_verdict.includes('⚠️')) {
+                summaryEl.classList.add('verdict-yellow');
+            } else {
+                summaryEl.classList.add('verdict-green');
+            }
+
+            // 2. Core Analysis
+            document.getElementById('queryImage').src = `data:image/jpeg;base64,${data.query_image_b64}`;
+            document.getElementById('elaImage').src = `data:image/jpeg;base64,${data.ela_image_b64}`;
+
+            document.getElementById('deepfakeLabel').textContent = data.deepfake_label.toUpperCase();
+            document.getElementById('deepfakeConfidence').textContent = data.deepfake_confidence.toFixed(2) + '%';
+            document.getElementById('tamperScore').textContent = data.tamper_score;
+            document.getElementById('ocrText').textContent = data.query_text;
+
+            // 3. Online Context
+            const webList = document.getElementById('webResultsList');
+            const webStatus = document.getElementById('webResultsStatus');
+            webList.innerHTML = ''; // Clear old results
+
+            const allWebLinks = [...data.web_results, ...data.visual_links.map(link => ({ link, title: "Visual Match", snippet: link }))];
+
+            if (allWebLinks.length > 0) {
+                webStatus.style.display = 'none';
+                allWebLinks.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a>
+                        <p>${item.snippet || item.link}</p>
+                    `;
+                    webList.appendChild(li);
+                });
+            } else {
+                webStatus.style.display = 'block';
+                webStatus.textContent = 'No relevant online context was found.';
+            }
+
+            // 4. Similar Images
+            const similarGallery = document.getElementById('similarImagesGallery');
+            const similarStatus = document.getElementById('similarImagesStatus');
+            similarGallery.innerHTML = ''; // Clear old results
+
+            if (data.similar_images_b64 && data.similar_images_b64.length > 0) {
+                similarStatus.style.display = 'none';
+                data.similar_images_b64.forEach(base64String => {
+                    if(base64String) {
+                        const img = document.createElement('img');
+                        img.src = `data:image/jpeg;base64,${base64String}`;
+                        img.alt = 'Similar database image';
+                        similarGallery.appendChild(img);
+                    }
+                });
+            } else {
+                similarStatus.style.display = 'block';
+                similarStatus.textContent = 'No similar images found in the local database.';
+            }
+        }
+
+    </script>
+</body>
+</html>
